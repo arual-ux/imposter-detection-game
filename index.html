@@ -124,6 +124,7 @@
             <div id="progressBar"></div>
         </div>
 
+        <p id="timer"></p>
         <div id="avatar"></div>
         <p id="scenario"></p>
         <div id="choices"></div>
@@ -174,6 +175,37 @@ function updateProgressBar() {
     document.getElementById("progressBar").style.width = progress + "%";
 }
 
+function startTimer() {
+    timeLeft = 15;
+    document.getElementById("timer").innerText = "⏱️ Time left: " + timeLeft;
+
+    timer = setInterval(() => {
+        timeLeft--;
+        document.getElementById("timer").innerText = "⏱️ Time left: " + timeLeft;
+
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            const current = scenarios[level];
+
+            wrongAnswers.push({
+                scenario: current.text,
+                correctAnswer: current.isImposter ? "Imposter" : "Real",
+                action: current.rightAction
+            });
+
+            document.getElementById("feedback").innerHTML =
+                "⛔ Time's up!<br>Correct answer: " +
+                (current.isImposter ? "Imposter" : "Real") +
+                "<br>Right action: " + current.rightAction;
+
+            setTimeout(() => {
+                level++;
+                loadLevel();
+            }, 2000);
+        }
+    }, 1000);
+}
+
 function loadLevel() {
     if (level >= scenarios.length) {
         endGame();
@@ -186,16 +218,17 @@ function loadLevel() {
     document.getElementById("avatar").innerText = avatars[Math.floor(Math.random() * avatars.length)];
     document.getElementById("scenario").innerText = current.text;
 
-    const choicesDiv = document.getElementById("choices");
-    choicesDiv.innerHTML = `
+    document.getElementById("choices").innerHTML = `
         <button id="imposterBtn" onclick="handleChoice(true)">Imposter</button>
         <button id="realBtn" onclick="handleChoice(false)">Real</button>
     `;
 
     document.getElementById("feedback").innerText = "";
+    startTimer();
 }
 
 function handleChoice(chosenImposter) {
+    clearInterval(timer);
     const current = scenarios[level];
     const correct = current.isImposter === chosenImposter;
 
@@ -234,6 +267,8 @@ function launchConfetti() {
 
 function endGame() {
     document.getElementById("gameContent").style.display = "none";
+    document.getElementById("timer").innerText = "";
+
     const resultsDiv = document.getElementById("results");
     resultsDiv.style.display = "block";
 
