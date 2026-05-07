@@ -14,18 +14,20 @@
         margin: 0;
     }
 
+    .fade {
+        opacity: 0;
+        transition: opacity 0.6s ease;
+    }
+    .fade.show {
+        opacity: 1;
+    }
+
     #gameBox {
         background: #161b22;
         padding: 20px;
         border-radius: 10px;
         max-width: 800px;
         margin: auto;
-        animation: fadeIn 0.8s ease;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
     }
 
     button {
@@ -43,17 +45,9 @@
         transform: scale(1.05);
     }
 
-    #imposterBtn {
-        background: #d73a49;
-        color: white;
-    }
-
-    #realBtn {
-        background: #238636;
-        color: white;
-    }
-
-    #startBtn {
+    #imposterBtn { background: #d73a49; color: white; }
+    #realBtn { background: #238636; color: white; }
+    #startBtn, #restartBtn, #playAgainBtn {
         background: #2ea043;
         color: white;
     }
@@ -77,13 +71,6 @@
     #avatar {
         font-size: 60px;
         text-align: center;
-        animation: bounceIn 0.6s ease;
-    }
-
-    @keyframes bounceIn {
-        0% { transform: scale(0.3); opacity: 0; }
-        60% { transform: scale(1.2); opacity: 1; }
-        100% { transform: scale(1); }
     }
 
     .confetti {
@@ -100,26 +87,31 @@
         to { transform: translateY(110vh) rotate(360deg); }
     }
 
-    @media (max-width: 600px) {
-        #avatar { font-size: 45px; }
-        button { font-size: 16px; padding: 12px; }
+    #historyBox {
+        margin-top: 20px;
+        padding: 15px;
+        background: #1f242d;
+        border-radius: 8px;
     }
 </style>
 </head>
 
 <body>
 
-<div id="gameBox">
+<div id="gameBox" class="fade show">
     <h1>🕵️ Imposter Detection Game</h1>
 
-    <div id="startScreen">
+    <div id="startScreen" class="fade show">
         <p><strong>Pass threshold: 80%</strong></p>
-        <p>You will be shown a series of scenarios. Your job is to decide whether the person is an <strong>Imposter</strong> or <strong>Real</strong>.</p>
-        <p>At the end, you’ll see your score and a list of any questions you got wrong.</p>
         <button id="startBtn" onclick="startGame()">Start Game</button>
+
+        <div id="historyBox">
+            <h3>📊 Score History</h3>
+            <ul id="historyList"></ul>
+        </div>
     </div>
 
-    <div id="gameContent" style="display:none;">
+    <div id="gameContent" class="fade" style="display:none;">
         <div id="progressContainer">
             <div id="progressBar"></div>
         </div>
@@ -131,7 +123,7 @@
         <p id="feedback"></p>
     </div>
 
-    <div id="results" style="display:none;"></div>
+    <div id="results" class="fade" style="display:none;"></div>
 </div>
 
 <script>
@@ -140,10 +132,11 @@ let score = 0;
 let wrongAnswers = [];
 let timer;
 let timeLeft = 15;
+let scenarios = [];
 
 const avatars = ["👨‍💼","👩‍💻","👤","🧑‍🔧","🧑‍💼","🕵️","🤖","🧛","🧑‍🚀","👨‍🏫"];
 
-const scenarios = [
+const questionBank = [
     { text: "Email from security-alert@companyverify-login.com: 'Your account will be disabled in 10 minutes.'", isImposter: true, rightAction: "Report the email as suspicious." },
     { text: "Teams message from your manager: 'Buy £200 in gift cards urgently.'", isImposter: true, rightAction: "Verify by calling your manager directly." },
     { text: "Supplier emails new bank details with a slightly different phone number.", isImposter: true, rightAction: "Verify using the official number on file." },
@@ -152,22 +145,96 @@ const scenarios = [
     { text: "Email from it-support@yourcompany.com reminding you of a scheduled password change.", isImposter: false, rightAction: "Use the official portal to change your password." },
     { text: "HR email from hr@yourcompany.com asking you to complete your annual benefits form.", isImposter: false, rightAction: "Access the HR system using your usual link." },
     { text: "Supplier emails from their usual domain confirming a payment that matches a purchase order.", isImposter: false, rightAction: "Process the payment normally." },
-    { text: "Your manager calls from their usual number reminding you to submit a report.", isImposter: false, rightAction: "Submit the report as requested." }
+    { text: "Your manager calls from their usual number reminding you to submit a report.", isImposter: false, rightAction: "Submit the report as requested." },
+
+    { text: "Email from Microsoft Support asking you to install a security patch via attachment.", isImposter: true, rightAction: "Do not open attachments. Report it." },
+    { text: "A colleague messages you from a new number saying they lost their phone and need your login.", isImposter: true, rightAction: "Never share credentials. Verify identity." },
+    { text: "A courier arrives claiming to deliver IT equipment but has no paperwork.", isImposter: true, rightAction: "Refuse delivery and contact IT." },
+    { text: "A pop-up on your screen says your computer is infected and to call a number.", isImposter: true, rightAction: "Close the pop-up and report to IT." },
+    { text: "Someone tailgates behind you into the office saying they forgot their badge.", isImposter: true, rightAction: "Ask them to check in at reception." },
+    { text: "Email from finance@yourcompany.com about an upcoming audit.", isImposter: false, rightAction: "Follow the normal audit process." },
+    { text: "Your team lead messages you on Teams asking for a project update.", isImposter: false, rightAction: "Provide the update." },
+    { text: "A known supplier sends an invoice that matches previous orders.", isImposter: false, rightAction: "Process normally." },
+    { text: "Your IT department emails about scheduled maintenance tonight.", isImposter: false, rightAction: "Be aware of the maintenance window." },
+    { text: "Email from payroll-support@secure-payments.co asking you to update bank details.", isImposter: true, rightAction: "Report and verify via HR." },
+
+    { text: "A caller claims to be from HMRC demanding immediate payment.", isImposter: true, rightAction: "Hang up and report the scam." },
+    { text: "A USB stick is found in the car park labelled Confidential.", isImposter: true, rightAction: "Do not plug it in. Report to IT." },
+    { text: "A colleague asks you to hold the door as they carry equipment.", isImposter: false, rightAction: "Allow them through." },
+    { text: "A fake antivirus window appears asking for admin access.", isImposter: true, rightAction: "Close it and report to IT." },
+    { text: "Your CEO emails from their usual address about an upcoming meeting.", isImposter: false, rightAction: "Attend the meeting." },
+    { text: "A WhatsApp message claims your company is giving bonuses via a link.", isImposter: true, rightAction: "Do not click the link." },
+    { text: "A contractor arrives with valid ID and is on the schedule.", isImposter: false, rightAction: "Allow access." },
+    { text: "A phishing email claims your mailbox is full and provides a login link.", isImposter: true, rightAction: "Report the phishing attempt." },
+    { text: "A colleague sends you a file via Teams as part of a project.", isImposter: false, rightAction: "Open it normally." },
+    { text: "An email claims your password expires today and links to a fake portal.", isImposter: true, rightAction: "Use the official password portal only." },
+
+    { text: "A delivery driver asks to borrow your phone to call their manager.", isImposter: true, rightAction: "Decline and direct them to reception." },
+    { text: "Your IT team asks you to restart your device for updates.", isImposter: false, rightAction: "Restart as requested." },
+    { text: "A stranger asks to use your badge to access the lift.", isImposter: true, rightAction: "Refuse and direct them to reception." },
+    { text: "A colleague you know asks for help resetting their password.", isImposter: false, rightAction: "Direct them to IT support." },
+    { text: "An email claims your account was accessed from Russia and asks you to verify.", isImposter: true, rightAction: "Report the email." },
+    { text: "A known vendor sends updated contract documents.", isImposter: false, rightAction: "Review as normal." },
+    { text: "A fake Teams login page appears after clicking a link.", isImposter: true, rightAction: "Close it and report immediately." },
+    { text: "Your manager sends a calendar invite for a performance review.", isImposter: false, rightAction: "Attend the meeting." },
+    { text: "A caller claims to be from IT and already knows your name but asks for your password.", isImposter: true, rightAction: "Never share passwords." },
+    { text: "A colleague asks you to verify a suspicious email they received.", isImposter: false, rightAction: "Help them report it." }
 ];
 
-// Shuffle scenarios
+/* -------------------------
+   Utility
+------------------------- */
 function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
     }
 }
-shuffle(scenarios);
 
+function fadeIn(el) { el.classList.add("show"); }
+function fadeOut(el) { el.classList.remove("show"); }
+
+/* -------------------------
+   Score History
+------------------------- */
+function loadHistory() {
+    const history = JSON.parse(localStorage.getItem("scoreHistory") || "[]");
+    const list = document.getElementById("historyList");
+    list.innerHTML = "";
+    history.forEach(h => {
+        const li = document.createElement("li");
+        li.textContent = `${h.score}/${h.total} (${h.percent}%)`;
+        list.appendChild(li);
+    });
+}
+
+function saveHistory(score, total) {
+    const history = JSON.parse(localStorage.getItem("scoreHistory") || "[]");
+    const percent = Math.round((score / total) * 100);
+    history.unshift({ score, total, percent });
+    localStorage.setItem("scoreHistory", JSON.stringify(history));
+}
+
+/* -------------------------
+   Game Flow
+------------------------- */
 function startGame() {
-    document.getElementById("startScreen").style.display = "none";
-    document.getElementById("gameContent").style.display = "block";
-    loadLevel();
+    loadHistory();
+    level = 0;
+    score = 0;
+    wrongAnswers = [];
+
+    const bankCopy = [...questionBank];
+    shuffle(bankCopy);
+    scenarios = bankCopy.slice(0, 10);
+
+    fadeOut(document.getElementById("startScreen"));
+    setTimeout(() => {
+        document.getElementById("startScreen").style.display = "none";
+        document.getElementById("gameContent").style.display = "block";
+        fadeIn(document.getElementById("gameContent"));
+        loadLevel();
+    }, 600);
 }
 
 function updateProgressBar() {
@@ -260,44 +327,76 @@ function launchConfetti() {
         confetti.style.background = `hsl(${Math.random() * 360}, 100%, 50%)`;
         confetti.style.animationDuration = (Math.random() * 2 + 2) + "s";
         document.body.appendChild(confetti);
-
         setTimeout(() => confetti.remove(), 4000);
     }
 }
 
 function endGame() {
-    document.getElementById("gameContent").style.display = "none";
-    document.getElementById("timer").innerText = "";
+    clearInterval(timer);
 
-    const resultsDiv = document.getElementById("results");
-    resultsDiv.style.display = "block";
+    fadeOut(document.getElementById("gameContent"));
+    setTimeout(() => {
+        document.getElementById("gameContent").style.display = "none";
 
-    const total = scenarios.length;
-    const percentage = (score / total) * 100;
+        const resultsDiv = document.getElementById("results");
+        resultsDiv.style.display = "block";
+        fadeIn(resultsDiv);
 
-    let resultHTML = `<h2>Results</h2>
-                      <p>Your score: ${score}/${total} (${percentage.toFixed(0)}%)</p>`;
+        const total = scenarios.length;
+        const percentage = (score / total) * 100;
 
-    if (percentage >= 80) {
-        resultHTML += `<h3>🎉 Congratulations! You passed!</h3>`;
-        launchConfetti();
-    } else {
-        resultHTML += `<h3>😕 Better luck next time!</h3>`;
-    }
+        saveHistory(score, total);
+        loadHistory();
 
-    if (wrongAnswers.length > 0) {
-        resultHTML += `<h3>Review Your Mistakes:</h3><ul>`;
-        wrongAnswers.forEach(item => {
-            resultHTML += `<li><strong>Scenario:</strong> ${item.scenario}<br>
-                           <strong>Correct Answer:</strong> ${item.correctAnswer}<br>
-                           <strong>Right Action:</strong> ${item.action}</li><br>`;
-        });
-        resultHTML += `</ul>`;
-    }
+        let resultHTML = `<h2>Results</h2>
+                          <p>Your score: ${score}/${total} (${percentage.toFixed(0)}%)</p>`;
 
-    resultsDiv.innerHTML = resultHTML;
+        if (percentage >= 80) {
+            resultHTML += `<h3>🎉 Congratulations! You passed!</h3>`;
+            launchConfetti();
+        } else {
+            resultHTML += `<h3>😕 Better luck next time!</h3>`;
+        }
+
+        if (wrongAnswers.length > 0) {
+            resultHTML += `<h3>Review Your Mistakes:</h3><ul>`;
+            wrongAnswers.forEach(item => {
+                resultHTML += `<li><strong>Scenario:</strong> ${item.scenario}<br>
+                               <strong>Correct Answer:</strong> ${item.correctAnswer}<br>
+                               <strong>Right Action:</strong> ${item.action}</li><br>`;
+            });
+            resultHTML += `</ul>`;
+        }
+
+        resultHTML += `
+            <button id="playAgainBtn" onclick="playAgain()">Play Again</button>
+            <button id="restartBtn" onclick="restartGame()">Return to Start</button>
+        `;
+
+        resultsDiv.innerHTML = resultHTML;
+    }, 600);
 }
+
+function playAgain() {
+    fadeOut(document.getElementById("results"));
+    setTimeout(() => {
+        document.getElementById("results").style.display = "none";
+        startGame();
+    }, 600);
+}
+
+function restartGame() {
+    fadeOut(document.getElementById("results"));
+    setTimeout(() => {
+        document.getElementById("results").style.display = "none";
+        document.getElementById("startScreen").style.display = "block";
+        fadeIn(document.getElementById("startScreen"));
+    }, 600);
+}
+
+loadHistory();
 </script>
 
 </body>
 </html>
+
