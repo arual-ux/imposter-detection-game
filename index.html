@@ -114,7 +114,7 @@
 
     <div id="startScreen">
         <p><strong>Pass threshold: 80%</strong></p>
-        <p>You will be shown a series of scenarios. Your job is to decide whether the person is an <strong>Imposter</strong> or <strong>Real</strong>.</p>
+        <p>You will be shown 10 random scenarios from a bank of 40. Decide whether each one is an <strong>Imposter</strong> or <strong>Real</strong>.</p>
         <p>At the end, you’ll see your score and a list of any questions you got wrong.</p>
         <button id="startBtn" onclick="startGame()">Start Game</button>
     </div>
@@ -139,30 +139,64 @@ let level = 0;
 let score = 0;
 let wrongAnswers = [];
 let timer;
-let timeLeft = 15;
+let timeLeft = 10;
 
 const avatars = ["👨‍💼","👩‍💻","👤","🧑‍🔧","🧑‍💼","🕵️","🤖","🧛","🧑‍🚀","👨‍🏫"];
 
-const scenarios = [
-    { text: "Email from security-alert@companyverify-login.com: 'Your account will be disabled in 10 minutes.'", isImposter: true, rightAction: "Report the email as suspicious." },
-    { text: "Teams message from your manager: 'Buy £200 in gift cards urgently.'", isImposter: true, rightAction: "Verify by calling your manager directly." },
-    { text: "Supplier emails new bank details with a slightly different phone number.", isImposter: true, rightAction: "Verify using the official number on file." },
-    { text: "Caller claims to be IT and asks for your MFA code.", isImposter: true, rightAction: "Never share MFA codes. Report the call." },
-    { text: "Visitor claims to be IT support but has no ID.", isImposter: true, rightAction: "Refuse entry and verify with IT." },
-    { text: "Email from it-support@yourcompany.com reminding you of a scheduled password change.", isImposter: false, rightAction: "Use the official portal to change your password." },
-    { text: "HR email from hr@yourcompany.com asking you to complete your annual benefits form.", isImposter: false, rightAction: "Access the HR system using your usual link." },
-    { text: "Supplier emails from their usual domain confirming a payment that matches a purchase order.", isImposter: false, rightAction: "Process the payment normally." },
-    { text: "Your manager calls from their usual number reminding you to submit a report.", isImposter: false, rightAction: "Submit the report as requested." }
+// 40‑question bank
+const questionBank = [
+    // Imposters
+    { text: "Email: 'Your mailbox is full. Click here to upgrade storage.'", isImposter: true, rightAction: "Report and delete the email." },
+    { text: "Caller claims to be IT and asks for your password.", isImposter: true, rightAction: "Never share passwords. Report the call." },
+    { text: "SMS: 'Your payroll info is incorrect. Log in here.'", isImposter: true, rightAction: "Use the official HR portal, not the link." },
+    { text: "Teams message: 'I need you to urgently approve this invoice.'", isImposter: true, rightAction: "Verify through known channels." },
+    { text: "Email from unknown supplier requesting immediate payment.", isImposter: true, rightAction: "Verify supplier identity before paying." },
+    { text: "Phone call: 'Your computer is infected. Install this tool.'", isImposter: true, rightAction: "Never install unknown software." },
+    { text: "Email: 'Your MFA token is expiring. Send your code.'", isImposter: true, rightAction: "Never share MFA codes." },
+    { text: "Visitor: 'I’m from maintenance. Let me into the server room.'", isImposter: true, rightAction: "Verify identity and require ID." },
+    { text: "Slack message: 'Share customer data for audit.'", isImposter: true, rightAction: "Verify with the audit team." },
+    { text: "Email: 'Your account will be deleted today. Click here.'", isImposter: true, rightAction: "Report the phishing attempt." },
+    { text: "Phone call spoofing CEO asking for urgent transfer.", isImposter: true, rightAction: "Verify with CEO’s PA." },
+    { text: "Email from similar domain: '@companny.com'.", isImposter: true, rightAction: "Check sender domain carefully." },
+    { text: "Message: 'Keep this secret. I need your help urgently.'", isImposter: true, rightAction: "Urgency + secrecy = red flag." },
+    { text: "Email: 'Download this attachment to view secure message.'", isImposter: true, rightAction: "Do not open unknown attachments." },
+    { text: "Caller pretending to be bank asking for verification code.", isImposter: true, rightAction: "Never share verification codes." },
+    { text: "Email: 'We detected suspicious login. Confirm your identity.'", isImposter: true, rightAction: "Use official login page only." },
+    { text: "WhatsApp message from unknown number claiming to be HR.", isImposter: true, rightAction: "HR will not contact via WhatsApp." },
+    { text: "Email: 'Pay this overdue invoice immediately.'", isImposter: true, rightAction: "Verify invoice legitimacy." },
+    { text: "Caller: 'I’m new IT staff. What’s your username?'", isImposter: true, rightAction: "Do not share credentials." },
+    { text: "Email: 'Your VPN access is suspended. Log in here.'", isImposter: true, rightAction: "Use official VPN portal." },
+
+    // Real (40%)
+    { text: "HR email reminding you to complete annual training.", isImposter: false, rightAction: "Complete training via official portal." },
+    { text: "Manager emails from official domain requesting a meeting.", isImposter: false, rightAction: "Attend the meeting." },
+    { text: "IT email announcing scheduled maintenance.", isImposter: false, rightAction: "Note the maintenance window." },
+    { text: "Payroll email confirming monthly payslip availability.", isImposter: false, rightAction: "Access payslip via official HR system." },
+    { text: "Security team email about new MFA rollout.", isImposter: false, rightAction: "Follow official MFA setup steps." },
+    { text: "Supplier email confirming delivery date.", isImposter: false, rightAction: "Acknowledge the update." },
+    { text: "Internal email about upcoming company event.", isImposter: false, rightAction: "Read details and attend if needed." },
+    { text: "Manager calls from known number asking for project update.", isImposter: false, rightAction: "Provide the update." },
+    { text: "IT sends reminder to restart your device for updates.", isImposter: false, rightAction: "Restart your device." },
+    { text: "Facilities email about fire drill schedule.", isImposter: false, rightAction: "Follow drill instructions." },
+    { text: "HR email confirming your leave request.", isImposter: false, rightAction: "Acknowledge confirmation." },
+    { text: "Finance email confirming approved expense claim.", isImposter: false, rightAction: "Record the approval." },
+    { text: "Internal newsletter from communications team.", isImposter: false, rightAction: "Read the newsletter." },
+    { text: "IT email about password expiry next week.", isImposter: false, rightAction: "Change password via official portal." },
+    { text: "Team lead messages you about tomorrow’s meeting.", isImposter: false, rightAction: "Prepare for the meeting." },
+    { text: "Official email confirming system outage resolution.", isImposter: false, rightAction: "Resume normal work." },
+    { text: "HR email about policy updates.", isImposter: false, rightAction: "Review updated policies." },
+    { text: "Internal audit team requests scheduled documentation.", isImposter: false, rightAction: "Provide documents via secure channel." },
+    { text: "IT email confirming your support ticket update.", isImposter: false, rightAction: "Review ticket status." },
+    { text: "Manager sends official survey link.", isImposter: false, rightAction: "Complete the survey." }
 ];
 
-// Shuffle scenarios
-function shuffle(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
+// Select 10 random questions
+function getRandomQuestions() {
+    const shuffled = [...questionBank].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 10);
 }
-shuffle(scenarios);
+
+let scenarios = getRandomQuestions();
 
 function startGame() {
     document.getElementById("startScreen").style.display = "none";
@@ -176,7 +210,7 @@ function updateProgressBar() {
 }
 
 function startTimer() {
-    timeLeft = 15;
+    timeLeft = 10;
     document.getElementById("timer").innerText = "⏱️ Time left: " + timeLeft;
 
     timer = setInterval(() => {
