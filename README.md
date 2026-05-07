@@ -19,14 +19,14 @@ This game supports the training objectives from the *Impersonation Attack Awaren
 
  ✨ Features
 
-- ✔️ 100% browser‑based (no installation needed)  
-- ✔️ Mobile‑responsive design  
-- ✔️ Randomised avatars  
-- ✔️ Randomised scenario order  
-- ✔️ Progress bar  
-- ✔️ Confetti celebration on pass  
-- ✔️ Full results page with detailed feedback  
-- ✔️ Wrong answers listed for revision  
-- ✔️ Smooth animations and clean UI  
-
--
+-  100% browser‑based (no installation needed)  
+-  Mobile‑responsive design  
+-  Randomised avatars  
+-  Randomised scenario order  
+-  Progress bar  
+-  Confetti celebration on pass  
+-  Full results page with detailed feedback  
+-  Wrong answers listed for revision  
+-  Smooth animations and clean UI  
+-  Large question bank
+  
